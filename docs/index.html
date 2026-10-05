@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script>
+    (function() {
+      const storedTheme = localStorage.getItem('theme') || localStorage.getItem('bh-theme');
+      if (storedTheme) {
+        document.documentElement.setAttribute('data-theme', storedTheme);
+      } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+        document.documentElement.setAttribute('data-theme', 'light');
+      } else {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    })();
+  </script>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-NFEM8TN9ZM"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-NFEM8TN9ZM');
+  </script>
+
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lyra-RS — Pure Rust Generative 3D World Models & Gaussian Splatting Engine</title>
+  <meta name="description" content="High-performance, pure Rust engine and native fork of NVIDIA's Project Lyra. Parallel CPU 3D Gaussian Splatting rasterizer, spherical harmonics up to degree 3, camera trajectory generators, and zero CUDA/PyTorch dependencies.">
+  <meta name="author" content="Brandon Hubbard">
+  <link rel="canonical" href="https://code.brandonhubbard.com/lyra-rs/">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://code.brandonhubbard.com/lyra-rs/">
+  <meta property="og:title" content="Lyra-RS — Pure Rust Generative 3D World Models & Gaussian Splatting Engine">
+  <meta property="og:description" content="High-performance, pure Rust engine and native fork of NVIDIA's Project Lyra. Parallel CPU 3D Gaussian Splatting rasterizer, spherical harmonics up to degree 3, camera trajectory generators, and zero CUDA/PyTorch dependencies.">
+  <meta property="og:site_name" content="Brandon Hubbard — Open Source Systems">
+
+  <!-- Twitter Cards -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Lyra-RS — Pure Rust Generative 3D World Models & Gaussian Splatting Engine">
+  <meta name="twitter:description" content="High-performance, pure Rust engine and native fork of NVIDIA's Project Lyra. Parallel CPU 3D Gaussian Splatting rasterizer, spherical harmonics up to degree 3, camera trajectory generators, and zero CUDA/PyTorch dependencies.">
+
+  <!-- Structured Data (JSON-LD) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "lyra-rs",
+    "applicationCategory": "DeveloperApplication",
+    "operatingSystem": "Cross-platform (Linux, macOS, Windows)",
+    "description": "High-performance, pure Rust engine and native fork of NVIDIA's Project Lyra. Parallel CPU 3D Gaussian Splatting rasterizer, spherical harmonics up to degree 3, camera trajectory generators, and zero CUDA/PyTorch dependencies.",
+    "license": "https://opensource.org/licenses/MIT",
+    "author": {
+      "@type": "Person",
+      "name": "Brandon Hubbard",
+      "url": "https://brandonhubbard.com"
+    },
+    "offers": {
+      "@type": "Offer",
+      "price": "0.00",
+      "priceCurrency": "USD"
+    }
+  }
+  </script>
+
+  <style>
+
+:root {
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "SF Mono", "JetBrains Mono", Menlo, Consolas, Monaco, monospace;
+  
+  --bg-black: #080a0f;
+  --bg-surface: #0e121a;
+  --bg-card: rgba(18, 24, 38, 0.7);
+  --bg-card-hover: rgba(26, 34, 52, 0.85);
+  --bg-glass: rgba(14, 18, 26, 0.75);
+  --bg-code: #0b0e14;
+
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-highlight: rgba(255, 255, 255, 0.16);
+  --border-focus: #38bdf8;
+
+  --text-main: #f3f4f6;
+  --text-muted: #94a3b8;
+  --text-dim: #64748b;
+
+  --accent-primary: #38bdf8;
+  --accent-rust: #f97316;
+  --accent-green: #10b981;
+  --accent-purple: #a855f7;
+
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-pill: 9999px;
+
+  --shadow-card: 0 10px 30px -10px rgba(0, 0, 0, 0.5), 0 0 1px 1px var(--border-subtle);
+  --shadow-code: 0 20px 45px -12px rgba(0, 0, 0, 0.8), 0 0 1px 1px rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="light"] {
+  --bg-black: #f8fafc;
+  --bg-surface: #f1f5f9;
+  --bg-card: rgba(255, 255, 255, 0.85);
+  --bg-card-hover: rgba(255, 255, 255, 0.98);
+  --bg-glass: rgba(255, 255, 255, 0.8);
+  --bg-code: #0f172a;
+
+  --border-subtle: rgba(0, 0, 0, 0.08);
+  --border-highlight: rgba(0, 0, 0, 0.16);
+  --border-focus: #0284c7;
+
+  --text-main: #0f172a;
+  --text-muted: #475569;
+  --text-dim: #64748b;
+
+  --shadow-card: 0 10px 30px -10px rgba(0, 0, 0, 0.08), 0 0 1px 1px var(--border-subtle);
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+  font-family: var(--font-sans);
+  background-color: var(--bg-black);
+  color: var(--text-main);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.6;
+}
+
+body {
+  min-height: 100vh;
+  position: relative;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.glow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(120px);
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.25;
+}
+
+.glow-1 {
+  top: -100px;
+  right: -50px;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, #38bdf8, transparent 70%);
+}
+
+.glow-2 {
+  top: 400px;
+  left: -150px;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, #f97316, transparent 70%);
+}
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  background: var(--bg-glass);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.nav-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  text-decoration: none;
+  color: var(--text-main);
+}
+
+.logo-badge {
+  background: linear-gradient(135deg, #f97316, #ea580c);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.25rem 0.6rem;
+  border-radius: var(--radius-sm);
+  letter-spacing: 0.05em;
+  box-shadow: 0 2px 8px rgba(249, 115, 22, 0.4);
+}
+
+.logo-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.nav-links a {
+  text-decoration: none;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: color 0.15s ease;
+}
+
+.nav-links a:hover {
+  color: var(--text-main);
+}
+
+.btn-github {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.9rem;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-main) !important;
+  font-size: 0.85rem !important;
+  font-weight: 600 !important;
+  transition: all 0.2s ease;
+}
+
+.btn-github:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: var(--border-highlight);
+  transform: translateY(-1px);
+}
+
+.theme-toggle {
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  padding: 0.4rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.theme-toggle:hover {
+  color: var(--text-main);
+  border-color: var(--border-highlight);
+}
+
+.main-content {
+  flex: 1;
+  position: relative;
+  z-index: 1;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem 5rem;
+  width: 100%;
+}
+
+.hero {
+  text-align: center;
+  padding: 3rem 0 4rem;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.hero-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.85rem;
+  border-radius: var(--radius-pill);
+  background: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  color: var(--accent-primary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+}
+
+.hero-title {
+  font-size: clamp(2.2rem, 5vw, 3.6rem);
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 1.15;
+  margin-bottom: 1.25rem;
+  background: linear-gradient(180deg, var(--text-main) 0%, rgba(243, 244, 246, 0.7) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.hero-subtitle {
+  font-size: 1.15rem;
+  color: var(--text-muted);
+  line-height: 1.65;
+  margin-bottom: 2.5rem;
+  max-width: 760px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.25rem;
+  margin: 2.5rem 0 3.5rem;
+}
+
+.stat-card {
+  background: var(--bg-card);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 1.5rem 1rem;
+  text-align: center;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-highlight);
+}
+
+.stat-value {
+  font-size: 2rem;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  color: var(--accent-primary);
+  margin-bottom: 0.35rem;
+}
+
+.stat-label {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+.code-box {
+  background: var(--bg-code);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-code);
+  overflow: hidden;
+  margin: 1.75rem 0;
+  text-align: left;
+}
+
+.code-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 0.8rem;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+}
+
+.code-dots {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.code-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.btn-copy {
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  padding: 0.25rem 0.6rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-copy:hover {
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.code-box pre {
+  padding: 1.25rem 1.5rem;
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: #e2e8f0;
+}
+
+.code-box code {
+  font-family: inherit;
+}
+
+.section {
+  padding: 3.5rem 0;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.section-tag {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--accent-rust);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 0.5rem;
+}
+
+.section-title {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  margin-bottom: 0.75rem;
+}
+
+.section-desc {
+  color: var(--text-muted);
+  font-size: 1.05rem;
+  max-width: 680px;
+  margin-bottom: 2rem;
+}
+
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.5rem;
+}
+
+.feature-card {
+  background: var(--bg-card);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 1.75rem;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.feature-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--border-highlight);
+  box-shadow: var(--shadow-card);
+}
+
+.feature-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: var(--radius-sm);
+  background: rgba(56, 189, 248, 0.1);
+  color: var(--accent-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.feature-title {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 0.6rem;
+}
+
+.feature-body {
+  color: var(--text-muted);
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+.footer {
+  border-top: 1px solid var(--border-subtle);
+  padding: 3rem 1.5rem;
+  background: var(--bg-surface);
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.footer-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.footer-links {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.footer-links a {
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.footer-links a:hover {
+  color: var(--text-main);
+}
+
+@media (max-width: 768px) {
+  .nav-links {
+    display: none;
+  }
+  .stats-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+  </style>
+</head>
+<body>
+  <div class="glow glow-1"></div>
+  <div class="glow glow-2"></div>
+
+  <header class="header">
+    <div class="nav-container">
+      <a href="https://code.brandonhubbard.com/lyra-rs/" class="logo">
+        <span class="logo-badge">PURE RUST GAUSSIAN SPLATTING</span>
+        <span class="logo-title">lyra-rs</span>
+      </a>
+      <nav class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#quickstart">Quickstart</a>
+        <a href="#architecture">Architecture</a>
+        <button class="theme-toggle" id="theme-btn" aria-label="Toggle Theme">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+        </button>
+        <a href="https://github.com/bhubbard/lyra-rs" target="_blank" rel="noopener noreferrer" class="btn-github">
+          <svg height="16" width="16" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path>
+          </svg>
+          GitHub
+        </a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="main-content">
+    <section class="hero">
+      <div class="hero-pill">⚡ High-Performance Pure Rust Systems</div>
+      <h1 class="hero-title">Generative 3D World Models & Gaussian Splatting in Pure Rust</h1>
+      <p class="hero-subtitle">High-performance, pure Rust engine and native fork of NVIDIA's Project Lyra. Parallel CPU 3D Gaussian Splatting rasterizer, spherical harmonics up to degree 3, camera trajectory generators, and zero CUDA/PyTorch dependencies.</p>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-value">100%</div>
+          <div class="stat-label">Pure Rust (Zero CUDA / PyTorch)</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">Deg 3</div>
+          <div class="stat-label">Spherical Harmonics (Y_lm)</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">16x16</div>
+          <div class="stat-label">Tile-Based Parallel Binning</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">3</div>
+          <div class="stat-label">Platforms (macOS, Linux, Windows)</div>
+        </div>
+
+      </div>
+    </section>
+
+    <section id="features" class="section">
+      <div class="section-tag">Capabilities</div>
+      <h2 class="section-title">Architected for Speed & Reliability</h2>
+      <p class="section-desc">Engineered from the ground up in memory-safe Rust with zero unnecessary dependencies.</p>
+      
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">⚡</div>
+          <h3 class="feature-title">Parallel Gaussian Rasterizer</h3>
+          <p class="feature-body">High-throughput pure Rust CPU rasterizer powered by Rayon and Glam. Renders complex 3D Gaussian splat clouds without proprietary CUDA drivers.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📐</div>
+          <h3 class="feature-title">Jacobian Screen Projection</h3>
+          <p class="feature-body">Converts 3D world covariance into 2D screen covariance matrices with accurate viewing frustum clipping and depth sorting.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🌈</div>
+          <h3 class="feature-title">Spherical Harmonics Degree 3</h3>
+          <p class="feature-body">Computes view-dependent radiance and specular reflections using spherical harmonic basis functions (up to degree 3 / 16 coefficients per channel).</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🎥</div>
+          <h3 class="feature-title">Camera Trajectory Generators</h3>
+          <p class="feature-body">Built-in analytical trajectory generators: orbital paths, spiral tracks, dolly zooms, and cinematic keyframe interpolators.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🖼️</div>
+          <h3 class="feature-title">Multi-Buffer Compositing</h3>
+          <p class="feature-body">Produces full color RGBA image buffers, linear expected depth maps, and accumulation alpha masks with front-to-back compositing.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🍎</div>
+          <h3 class="feature-title">Apple Silicon Optimized</h3>
+          <p class="feature-body">Runs with multi-core NEON SIMD acceleration on Apple Silicon (M1/M2/M3/M4) as well as AVX2 on Linux and Windows.</p>
+        </div>
+
+      </div>
+    </section>
+
+    <section id="quickstart" class="section">
+      <div class="section-tag">Quickstart</div>
+      <h2 class="section-title">Get Started in Seconds</h2>
+      <p class="section-desc">Install via Cargo and run immediately on macOS, Linux, or Windows.</p>
+
+      <div class="code-box">
+        <div class="code-header">
+          <div class="code-dots">
+            <span class="code-dot"></span>
+            <span class="code-dot"></span>
+            <span class="code-dot"></span>
+          </div>
+          <span>Terminal</span>
+          <button class="btn-copy" onclick="copyCode(this)">Copy</button>
+        </div>
+        <pre><code># Install Lyra-RS
+cargo install --git https://github.com/bhubbard/lyra-rs
+
+# Render a Gaussian Splat PLY scene to PNG
+lyra-rs render --scene scene.ply --out render.png --width 1920 --height 1080
+
+# Generate an orbital camera sequence
+lyra-rs animate --scene scene.ply --trajectory orbit --frames 120 --out ./frames/
+
+# Run the test suite
+cargo test --release</code></pre>
+      </div>
+    </section>
+
+    <section id="architecture" class="section">
+      <div class="section-tag">Systems Design</div>
+      <h2 class="section-title">Engine Architecture</h2>
+      <p class="section-desc">Streamlined execution pipeline with deterministic memory isolation and zero runtime overhead.</p>
+
+      <div class="code-box">
+        <div class="code-header">
+          <div class="code-dots">
+            <span class="code-dot"></span>
+            <span class="code-dot"></span>
+            <span class="code-dot"></span>
+          </div>
+          <span>Pipeline Flow</span>
+          <button class="btn-copy" onclick="copyCode(this)">Copy</button>
+        </div>
+        <pre><code>┌───────────────────────────────────────────────────────────┐
+│               Input: 3D Gaussian Splat Cloud (PLY)        │
+└─────────────────────────────┬─────────────────────────────┘
+                              │ Positions, Rotations, Scales, SH
+┌─────────────────────────────▼─────────────────────────────┐
+│          Jacobian Screen-Space Projection & Covariance    │
+└─────────────────────────────┬─────────────────────────────┘
+                              │ 2D Ellipses & Depth Keys
+┌─────────────────────────────▼─────────────────────────────┐
+│           16x16 Tile Binning & Front-to-Back Sort         │
+└─────────────────────────────┬─────────────────────────────┘
+                              │ Multi-Threaded Rayon Workers
+┌─────────────────────────────▼─────────────────────────────┐
+│    Alpha Compositing + Spherical Harmonics Color Output   │
+└───────────────────────────────────────────────────────────┘</code></pre>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-content">
+      <p>© 2026 <strong>Brandon Hubbard</strong> · Open Source Engineering</p>
+      <div class="footer-links">
+        <a href="https://brandonhubbard.com" target="_blank" rel="noopener noreferrer">Portfolio</a>
+        <a href="https://github.com/bhubbard" target="_blank" rel="noopener noreferrer">GitHub</a>
+        <a href="https://github.com/bhubbard/lyra-rs" target="_blank" rel="noopener noreferrer">Repository</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    function copyCode(btn) {
+      const pre = btn.closest('.code-box').querySelector('pre');
+      navigator.clipboard.writeText(pre.innerText).then(() => {
+        const orig = btn.innerText;
+        btn.innerText = 'Copied!';
+        setTimeout(() => { btn.innerText = orig; }, 2000);
+      });
+    }
+
+    const themeBtn = document.getElementById('theme-btn');
+    if (themeBtn) {
+      themeBtn.addEventListener('click', () => {
+        const current = document.documentElement.getAttribute('data-theme');
+        const next = current === 'light' ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', next);
+        localStorage.setItem('theme', next);
+      });
+    }
+  </script>
+</body>
+</html>
